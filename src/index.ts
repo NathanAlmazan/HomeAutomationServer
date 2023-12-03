@@ -72,8 +72,6 @@ interface StatusReport {
 
 app.post('/status', async (req, res) => {
     const status: StatusReport = req.body;
-    console.log(JSON.stringify(status));
-    console.log(status.status);
 
     try {
         const device =  await database.smartDevices.update({
@@ -112,15 +110,26 @@ wss.on('connection', function connection(ws: WebSocket, deviceId: string) {
     ws.on('message', function message(data) {
         const message: SocketMessage = JSON.parse(data.toString());
 
-        wss.clients.forEach(function each(client) {
-            if (client !== ws && client.readyState === WebSocket.OPEN) {
-                client.send(JSON.stringify({
-                    sender: deviceId,
-                    recipient: message.recipient,
-                    action: message.action
-                }));
+        database.smartDevices.update({
+            where: {
+                deviceId: message.recipient,
+            },
+            data: {
+                deviceStatus: message.action > 0 ? true : false,
             }
-        });
+        })
+        .then(() => {
+            wss.clients.forEach(function each(client) {
+                if (client !== ws && client.readyState === WebSocket.OPEN) {
+                    client.send(JSON.stringify({
+                        sender: deviceId,
+                        recipient: message.recipient,
+                        action: message.action
+                    }));
+                }
+            });
+        })
+        .catch((err) => console.log(err));
     });
 });
 
