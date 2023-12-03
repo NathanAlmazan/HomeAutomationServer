@@ -65,6 +65,33 @@ app.get('/login/:uid', async (req, res) => {
     })
 });
 
+interface StatusReport {
+    deviceId: string;
+    status: number;
+}
+
+app.post('/status', async (req, res) => {
+    const status: StatusReport = req.body;
+
+    try {
+        const device =  await database.smartDevices.update({
+            where: {
+                deviceId: status.deviceId,
+            },
+            data: {
+                deviceStatus: status.status > 0 ? true : false,
+            }
+        });
+    
+        return res.status(200).json(device);
+    } catch (err) {
+        return res.status(400).json({
+            error: err,
+            timestamp: new Date().toISOString()
+        })
+    }
+});
+
 // initialize websocket server using external http server
 const server = createServer(app); 
 const wss = new WebSocketServer({ 
@@ -74,7 +101,7 @@ const wss = new WebSocketServer({
 // ====================== WebSocket Endpoints ========================= //
 interface SocketMessage {
     recipient: string;
-    action: "TURN_ON" | "TURN_OFF"
+    action: number;
 }
 
 wss.on('connection', function connection(ws: WebSocket, deviceId: string) {
