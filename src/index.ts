@@ -72,6 +72,8 @@ interface StatusReport {
 
 app.post('/status', async (req, res) => {
     const status: StatusReport = req.body;
+    console.log(JSON.stringify(status));
+    console.log(status.status);
 
     try {
         const device =  await database.smartDevices.update({
