@@ -79,7 +79,7 @@ app.post('/status', async (req, res) => {
                 deviceId: status.deviceId,
             },
             data: {
-                deviceStatus: status.status > 0 ? true : false,
+                deviceStatus: status.status > 0 ? false : true,
             }
         });
     
@@ -101,7 +101,8 @@ const wss = new WebSocketServer({
 // ====================== WebSocket Endpoints ========================= //
 interface SocketMessage {
     recipient: string;
-    action: number;
+    action: "STATUS" | "TIMER";
+    value: number;
 }
 
 wss.on('connection', function connection(ws: WebSocket, deviceId: string) {
@@ -110,26 +111,81 @@ wss.on('connection', function connection(ws: WebSocket, deviceId: string) {
     ws.on('message', function message(data) {
         const message: SocketMessage = JSON.parse(data.toString());
 
-        database.smartDevices.update({
-            where: {
-                deviceId: message.recipient,
-            },
-            data: {
-                deviceStatus: message.action > 0 ? true : false,
-            }
-        })
-        .then(() => {
-            wss.clients.forEach(function each(client) {
-                if (client !== ws && client.readyState === WebSocket.OPEN) {
-                    client.send(JSON.stringify({
-                        sender: deviceId,
-                        recipient: message.recipient,
-                        action: message.action
-                    }));
+        // if action is status send command
+        if (message.action === "STATUS") {
+            database.smartDevices.update({
+                where: {
+                    deviceId: message.recipient,
+                },
+                data: {
+                    deviceStatus: message.value > 0 ? false : true,
                 }
-            });
-        })
-        .catch((err) => console.log(err));
+            })
+            .then(() => {
+                wss.clients.forEach(function each(client) {
+                    if (client !== ws && client.readyState === WebSocket.OPEN) {
+                        client.send(JSON.stringify({
+                            sender: deviceId,
+                            recipient: message.recipient,
+                            action: message.action,
+                            value: message.value
+                        }));
+                    }
+                });
+            })
+            .catch((err) => console.log(err));
+
+        // if action is timer...
+        } else if (message.action === "TIMER") {
+            // turn device on
+            database.smartDevices.update({
+                where: {
+                    deviceId: message.recipient,
+                },
+                data: {
+                    deviceStatus: true,
+                }
+            })
+            .then(() => {
+                wss.clients.forEach(function each(client) {
+                    if (client !== ws && client.readyState === WebSocket.OPEN) {
+                        client.send(JSON.stringify({
+                            sender: deviceId,
+                            recipient: message.recipient,
+                            action: message.action,
+                            value: 0
+                        }));
+                    }
+                });
+
+                // wait for defined time
+                setTimeout(() => {
+                    // turn the device off
+                    database.smartDevices.update({
+                        where: {
+                            deviceId: message.recipient,
+                        },
+                        data: {
+                            deviceStatus: false,
+                        }
+                    })
+                    .then(() => {
+                        wss.clients.forEach(function each(client) {
+                            if (client !== ws && client.readyState === WebSocket.OPEN) {
+                                client.send(JSON.stringify({
+                                    sender: deviceId,
+                                    recipient: message.recipient,
+                                    action: message.action,
+                                    value: 1
+                                }));
+                            }
+                        });
+                    })
+                    .catch((err) => console.log(err));
+                }, message.value);
+            })
+            .catch((err) => console.log(err));
+        }
     });
 });
 
