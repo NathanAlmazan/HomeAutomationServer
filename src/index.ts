@@ -92,6 +92,23 @@ app.post('/status', async (req, res) => {
     }
 });
 
+app.get('/status/:uid', async (req, res) => {
+    try {
+        const device = await database.smartDevices.findUnique({
+            where: {
+                deviceId: req.params.uid
+            }
+        });
+    
+        return res.status(200).json(device);
+    } catch (err) {
+        return res.status(400).json({
+            error: err,
+            timestamp: new Date().toISOString()
+        })
+    }
+});
+
 // initialize websocket server using external http server
 const server = createServer(app); 
 const wss = new WebSocketServer({ 
