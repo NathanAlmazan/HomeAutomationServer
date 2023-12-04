@@ -110,7 +110,12 @@ app.get('/status/:uid', async (req, res) => {
 });
 
 interface EnergyReport {
-    kiloWattHour: number;
+    power: number;    
+    voltage: number;     
+    current: number;         
+    energy: number;             
+    frequency: number            
+    powerFactor: number;    
 }
 
 app.post('/energy', async (req, res) => {
@@ -118,13 +123,23 @@ app.post('/energy', async (req, res) => {
     try {
         const report = await database.energyMonitoring.create({
             data: {
-                kiloWattHour: new Prisma.Decimal(data.kiloWattHour)
+                power: new Prisma.Decimal(data.power),
+                voltage: new Prisma.Decimal(data.voltage),
+                current: new Prisma.Decimal(data.current),
+                energy: new Prisma.Decimal(data.energy),
+                frequency: new Prisma.Decimal(data.frequency),
+                powerFactor: new Prisma.Decimal(data.powerFactor)
             }
         })
 
         return res.status(200).json({
             reportId: report.recordId.toString(),
-            kiloWattHour: report.kiloWattHour.toNumber(),
+            power: report.power.toNumber(),
+            current: report.current.toNumber(),
+            voltage: report.voltage.toNumber(),
+            energy: report.energy.toNumber(),
+            frequency: report.frequency.toNumber(),
+            powerFactor: report.powerFactor.toNumber(),
             recordedAt: report.recordedAt.toISOString()
         }); 
     } catch (err) {
