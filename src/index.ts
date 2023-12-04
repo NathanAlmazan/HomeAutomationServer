@@ -123,7 +123,7 @@ app.post('/energy', async (req, res) => {
         })
 
         return res.status(200).json({
-            reportId: report.recordId,
+            reportId: report.recordId.toString(),
             kiloWattHour: report.kiloWattHour.toNumber(),
             recordedAt: report.recordedAt.toISOString()
         }); 
