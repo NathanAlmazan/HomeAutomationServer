@@ -109,6 +109,28 @@ app.get('/status/:uid', async (req, res) => {
     }
 });
 
+interface EnergyReport {
+    kiloWattHour: number;
+}
+
+app.post('/energy', async (req, res) => {
+    const data = req.body as EnergyReport;
+    try {
+        const report = await database.energyMonitoring.create({
+            data: {
+                kiloWattHour: data.kiloWattHour
+            }
+        })
+
+        return res.status(200).json(report); 
+    } catch (err) {
+        return res.status(400).json({
+            error: err,
+            timestamp: new Date().toISOString()
+        })
+    }
+});
+
 // initialize websocket server using external http server
 const server = createServer(app); 
 const wss = new WebSocketServer({ 

@@ -16,3 +16,9 @@ model SmartDevices {
   devicePass      String         @db.VarChar(255)
   deviceStatus    Boolean        @default(false)
 }
+
+model EnergyMonitoring {
+  recordId        BigInt        @id @default(autoincrement())
+  kiloWattHour    Decimal       
+  recordedAt      DateTime      @default(now())
+}
