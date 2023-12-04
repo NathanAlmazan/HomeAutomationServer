@@ -6,7 +6,7 @@ import cors from 'cors';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import dotenv from 'dotenv';
-import { PrismaClient, SmartDevices } from '@prisma/client';
+import { Prisma, PrismaClient, SmartDevices } from '@prisma/client';
 
 dotenv.config();
 
@@ -118,11 +118,15 @@ app.post('/energy', async (req, res) => {
     try {
         const report = await database.energyMonitoring.create({
             data: {
-                kiloWattHour: data.kiloWattHour
+                kiloWattHour: new Prisma.Decimal(data.kiloWattHour)
             }
         })
 
-        return res.status(200).json(report); 
+        return res.status(200).json({
+            reportId: report.recordId,
+            kiloWattHour: report.kiloWattHour.toNumber(),
+            recordedAt: report.recordedAt.toISOString()
+        }); 
     } catch (err) {
         return res.status(400).json({
             error: err,
