@@ -20,6 +20,8 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
 // ======================== HTTP Endpoints ============================ //
+
+// ======================== AUTHENTICATION ============================ //
 app.post('/register', async (req, res) => {
     const device: SmartDevices = req.body;
 
@@ -65,6 +67,8 @@ app.get('/login/:uid', async (req, res) => {
     })
 });
 
+// =============================== DEVICE STATUSES ========================= //
+
 interface StatusReport {
     deviceId: string;
     status: number;
@@ -109,6 +113,8 @@ app.get('/status/:uid', async (req, res) => {
     }
 });
 
+// =============================== ENERGY REPORT ========================== //
+
 interface EnergyReport {
     power: number;    
     voltage: number;     
@@ -142,6 +148,49 @@ app.post('/energy', async (req, res) => {
             powerFactor: report.powerFactor.toNumber(),
             recordedAt: report.recordedAt.toISOString()
         }); 
+    } catch (err) {
+        return res.status(400).json({
+            error: err,
+            timestamp: new Date().toISOString()
+        })
+    }
+});
+
+app.get('/energy:timestamp', async (req, res) => {
+    const timestamp = req.params.timestamp;
+
+    try {
+        const previous = new Date(timestamp);
+        previous.setDate(previous.getDate() - 1);
+
+        const current = new Date(timestamp);
+
+        const reports = await database.energyMonitoring.findMany({
+            where: {
+                recordedAt: {
+                    gte: previous,
+                    lte: current
+                }
+            }
+        });
+
+        const consumption = reports[0].power.toNumber() - reports[reports.length - 1].power.toNumber();
+        const cost = consumption * 12.00;
+
+        return res.json({
+            records: reports.map(report => ({
+                reportId: report.recordId.toString(),
+                power: report.power.toNumber(),
+                current: report.current.toNumber(),
+                voltage: report.voltage.toNumber(),
+                energy: report.energy.toNumber(),
+                frequency: report.frequency.toNumber(),
+                powerFactor: report.powerFactor.toNumber(),
+                recordedAt: report.recordedAt.toISOString()
+            })),
+            consumption: consumption,
+            cost: cost
+        })
     } catch (err) {
         return res.status(400).json({
             error: err,
