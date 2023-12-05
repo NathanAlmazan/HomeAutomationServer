@@ -14,7 +14,9 @@ model SmartDevices {
   deviceId        String         @id @db.Uuid @default(uuid())
   deviceName      String         @db.VarChar(50)
   devicePass      String         @db.VarChar(255)
+  deviceCategory  String         @db.VarChar(50) @default("Outlet")
   deviceStatus    Boolean        @default(false)
+  controller      Boolean        @default(false)
 }
 
 model EnergyMonitoring {

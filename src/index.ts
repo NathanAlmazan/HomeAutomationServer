@@ -113,6 +113,23 @@ app.get('/status/:uid', async (req, res) => {
     }
 });
 
+app.get('/devices', async (req, res) => {
+    try {
+        const devices = await database.smartDevices.findMany({
+            where: {
+                controller: false
+            }
+        });
+    
+        return res.status(200).json(devices);
+    } catch (err) {
+        return res.status(400).json({
+            error: err,
+            timestamp: new Date().toISOString()
+        })
+    }
+})
+
 // =============================== ENERGY REPORT ========================== //
 
 interface EnergyReport {
