@@ -118,6 +118,9 @@ app.get('/devices', async (req, res) => {
         const devices = await database.smartDevices.findMany({
             where: {
                 controller: false
+            },
+            orderBy: {
+                deviceName: 'asc'
             }
         });
     
