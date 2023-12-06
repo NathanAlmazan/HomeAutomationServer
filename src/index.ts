@@ -552,9 +552,13 @@ const job = scheduler.scheduleJob('* * * * *', function() {
         }
     })
     .then(devices => {
+        
         for (let i = 0; i < devices.length; i++) {
-            if ((hour > devices[i].startHour || (hour == devices[i].startHour && minute >= devices[i].startMinute)) &&
-                (hour < devices[i].endHour || (hour == devices[i].endHour && minute <= devices[i].endMinute))) {
+            const start = new Date(2020, 12, 25, devices[i].startHour, devices[i].startMinute);
+            const end = new Date(2020, 12, 25, devices[i].endHour, devices[i].endMinute);
+            const cursor = new Date(2020, 12, 25, hour, minute);
+
+            if (start.getTime() <= cursor.getTime() && end.getTime() >= cursor.getTime()) {
                 database.smartDevices.update({
                     where: {
                         deviceId: devices[i].deviceId
