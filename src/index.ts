@@ -230,40 +230,47 @@ app.get('/schedule/:uid', async (req, res) => {
 app.post('/schedule/:uid', async (req, res) => {
     const data = req.body as ScheduledSwitch;
 
-    const schedule = await database.scheduledSwitch.findUnique({
-        where: {
-            deviceId: req.params.uid
-        }
-    });
-
-    if (schedule) {
-        const updated = await database.scheduledSwitch.update({
+    try {
+        const schedule = await database.scheduledSwitch.findUnique({
             where: {
                 deviceId: req.params.uid
-            },
-            data: {
-                startHour: data.startHour,
-                startMinute: data.startMinute,
-                endHour: data.endHour,
-                endMinute: data.endMinute,
-                active: true
             }
         });
 
-        return res.status(200).json(updated);
-    } else {
-        const saved = await database.scheduledSwitch.create({
-            data: {
-                deviceId: req.params.uid,
-                startHour: data.startHour,
-                startMinute: data.startMinute,
-                endHour: data.endHour,
-                endMinute: data.endMinute,
-                active: true
-            }
-        });
-
-        return res.status(200).json(saved);
+        if (schedule) {
+            const updated = await database.scheduledSwitch.update({
+                where: {
+                    deviceId: req.params.uid
+                },
+                data: {
+                    startHour: data.startHour,
+                    startMinute: data.startMinute,
+                    endHour: data.endHour,
+                    endMinute: data.endMinute,
+                    active: true
+                }
+            });
+    
+            return res.status(200).json({ ...updated, scheduleId: updated.scheduleId.toString() });
+        } else {
+            const saved = await database.scheduledSwitch.create({
+                data: {
+                    deviceId: req.params.uid,
+                    startHour: data.startHour,
+                    startMinute: data.startMinute,
+                    endHour: data.endHour,
+                    endMinute: data.endMinute,
+                    active: true
+                }
+            });
+    
+            return res.status(200).json({ ...saved, scheduleId: saved.scheduleId.toString() });
+        }
+    } catch (err) {
+        return res.status(400).json({
+            error: err,
+            timestamp: new Date().toISOString()
+        })
     }
 });
 
@@ -278,7 +285,7 @@ app.get('/schedule/:uid/stop', async (req, res) => {
             }
         });
 
-        return res.status(200).json(updated);
+        return res.status(200).json({ ...updated, scheduleId: updated.scheduleId.toString() });
     } catch (err) {
         return res.status(400).json({
             error: err,
