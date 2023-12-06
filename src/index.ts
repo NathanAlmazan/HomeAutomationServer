@@ -317,7 +317,18 @@ app.post('/energy', async (req, res) => {
                 frequency: new Prisma.Decimal(data.frequency),
                 powerFactor: new Prisma.Decimal(data.powerFactor)
             }
-        })
+        });
+
+        wss.clients.forEach(function each(client) {
+            if (client.readyState === WebSocket.OPEN) {
+                client.send(JSON.stringify({
+                    sender: "server",
+                    recipient: "all",
+                    action: "REPORT",
+                    value: 1
+                }));
+            }
+        });
 
         return res.status(200).json({
             reportId: report.recordId.toString(),
