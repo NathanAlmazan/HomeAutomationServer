@@ -309,7 +309,7 @@ wss.on('connection', function connection(ws: WebSocket, deviceId: string) {
                     })
                     .then(() => {
                         wss.clients.forEach(function each(client) {
-                            if (client !== ws && client.readyState === WebSocket.OPEN) {
+                            if (client.readyState === WebSocket.OPEN) {
                                 client.send(JSON.stringify({
                                     sender: deviceId,
                                     recipient: message.recipient,
