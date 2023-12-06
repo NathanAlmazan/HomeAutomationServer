@@ -18,6 +18,7 @@ model SmartDevices {
   deviceStatus    Boolean        @default(false)
   controller      Boolean        @default(false)
   deviceTimer     Boolean        @default(false)
+  outlet          Int            @default(0)
   schedules       ScheduledSwitch?
 }
 

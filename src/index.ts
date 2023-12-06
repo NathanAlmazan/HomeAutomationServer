@@ -136,7 +136,7 @@ app.get('/devices', async (req, res) => {
                 controller: false
             },
             orderBy: {
-                deviceName: 'asc'
+                outlet: 'asc'
             },
             include: {
                 schedules: true
