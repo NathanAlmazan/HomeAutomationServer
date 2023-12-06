@@ -17,6 +17,8 @@ model SmartDevices {
   deviceCategory  String         @db.VarChar(50) @default("Outlet")
   deviceStatus    Boolean        @default(false)
   controller      Boolean        @default(false)
+  deviceTimer     Boolean        @default(false)
+  schedules       ScheduledSwitch?
 }
 
 model EnergyMonitoring {
@@ -28,4 +30,15 @@ model EnergyMonitoring {
   frequency       Decimal       
   powerFactor     Decimal       
   recordedAt      DateTime      @default(now())
+}
+
+model ScheduledSwitch {
+  scheduleId      BigInt        @id @default(autoincrement())
+  startHour       Int
+  startMinute     Int
+  endHour         Int
+  endMinute       Int
+  active          Boolean       @default(true)
+  deviceId        String        @db.Uuid @unique
+  device          SmartDevices  @relation(fields: [deviceId], references: [deviceId])
 }

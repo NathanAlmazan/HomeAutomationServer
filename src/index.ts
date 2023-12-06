@@ -3,15 +3,18 @@ import bodyParser from 'body-parser';
 import { IncomingMessage, createServer } from 'http';
 import { WebSocket, WebSocketServer } from 'ws';
 import cors from 'cors';
-import bcrypt from 'bcrypt';
+import scheduler from 'node-schedule';
 import jwt from 'jsonwebtoken';
 import dotenv from 'dotenv';
-import { Prisma, PrismaClient, SmartDevices } from '@prisma/client';
+import { Prisma, PrismaClient, ScheduledSwitch, SmartDevices } from '@prisma/client';
 
 dotenv.config();
 
 // initialize database
 const database = new PrismaClient();
+
+// initialize timer storage
+let timerIds: { [key: string]: NodeJS.Timeout } = {};
 
 // initialize express application
 const app = express();
@@ -124,6 +127,8 @@ app.get('/status/:uid', async (req, res) => {
     }
 });
 
+// =============================== DEVICE DETAILS ========================= //
+
 app.get('/devices', async (req, res) => {
     try {
         const devices = await database.smartDevices.findMany({
@@ -132,10 +137,155 @@ app.get('/devices', async (req, res) => {
             },
             orderBy: {
                 deviceName: 'asc'
+            },
+            include: {
+                schedules: true
+            }
+        });
+    
+        return res.status(200).json(devices.map(device => ({
+            deviceId: device.deviceId,
+            deviceName: device.deviceName,
+            devicePass: device.devicePass,
+            deviceCategory: device.deviceCategory,
+            deviceStatus: device.deviceStatus,
+            controller: device.controller,
+            deviceTimer: device.deviceTimer,
+            deviceSchedule: device.schedules !== null && device.schedules.active
+        })));
+    } catch (err) {
+        return res.status(400).json({
+            error: err,
+            timestamp: new Date().toISOString()
+        })
+    }
+});
+
+app.post('/device/:uid', async (req, res) => {
+    const device = req.body as SmartDevices;
+
+    try {
+        const devices = await database.smartDevices.update({
+            where: {
+                deviceId: req.params.uid
+            },
+            data: {
+                deviceName: device.deviceName,
+                deviceCategory: device.deviceCategory
             }
         });
     
         return res.status(200).json(devices);
+    } catch (err) {
+        return res.status(400).json({
+            error: err,
+            timestamp: new Date().toISOString()
+        })
+    }
+});
+
+app.get('/device/:uid', async (req, res) => {
+    try {
+        const device = await database.smartDevices.findUnique({
+            where: {
+                deviceId: req.params.uid
+            }
+        });
+    
+        return res.status(200).json(device);
+    } catch (err) {
+        return res.status(400).json({
+            error: err,
+            timestamp: new Date().toISOString()
+        })
+    }
+});
+
+// =============================== DEVICE SCHEDULES ========================= //
+
+app.get('/schedule/:uid', async (req, res) => {
+    try {
+        const schedule = await database.scheduledSwitch.findUnique({
+            where: {
+                deviceId: req.params.uid
+            }
+        });
+
+        if (!schedule) {
+            return res.status(400).json({
+                error: "No Schedule Found",
+                timestamp: new Date().toISOString()
+            })
+        }
+    
+        return res.status(200).json(schedule);
+    } catch (err) {
+        return res.status(400).json({
+            error: err,
+            timestamp: new Date().toISOString()
+        })
+    }
+});
+
+app.post('/schedule/:uid', async (req, res) => {
+    const data = req.body as ScheduledSwitch;
+
+    try {
+        const schedule = await database.scheduledSwitch.findUnique({
+            where: {
+                deviceId: req.params.uid
+            }
+        });
+
+        if (schedule) {
+            const updated = await database.scheduledSwitch.update({
+                where: {
+                    deviceId: req.params.uid
+                },
+                data: {
+                    startHour: data.startHour,
+                    startMinute: data.startMinute,
+                    endHour: data.endHour,
+                    endMinute: data.endMinute,
+                    active: true
+                }
+            });
+    
+            return res.status(200).json(updated);
+        } else {
+            const saved = await database.scheduledSwitch.create({
+                data: {
+                    deviceId: req.params.uid,
+                    startHour: data.startHour,
+                    startMinute: data.startMinute,
+                    endHour: data.endHour,
+                    endMinute: data.endMinute,
+                    active: true
+                }
+            });
+    
+            return res.status(200).json(saved);
+        }
+    } catch (err) {
+        return res.status(400).json({
+            error: err,
+            timestamp: new Date().toISOString()
+        })
+    }
+});
+
+app.get('/schedule/:uid/stop', async (req, res) => {
+    try {
+        const updated = await database.scheduledSwitch.update({
+            where: {
+                deviceId: req.params.uid
+            },
+            data: {
+                active: false
+            }
+        });
+
+        return res.status(200).json(updated);
     } catch (err) {
         return res.status(400).json({
             error: err,
@@ -282,6 +432,7 @@ wss.on('connection', function connection(ws: WebSocket, deviceId: string) {
                 },
                 data: {
                     deviceStatus: true,
+                    deviceTimer: true
                 }
             })
             .then(() => {
@@ -297,7 +448,7 @@ wss.on('connection', function connection(ws: WebSocket, deviceId: string) {
                 });
 
                 // wait for defined time
-                setTimeout(() => {
+                const timer = setTimeout(() => {
                     // turn the device off
                     database.smartDevices.update({
                         where: {
@@ -305,6 +456,7 @@ wss.on('connection', function connection(ws: WebSocket, deviceId: string) {
                         },
                         data: {
                             deviceStatus: false,
+                            deviceTimer: false
                         }
                     })
                     .then(() => {
@@ -321,6 +473,34 @@ wss.on('connection', function connection(ws: WebSocket, deviceId: string) {
                     })
                     .catch((err) => console.log(err));
                 }, message.value);
+
+                timerIds[message.recipient] = timer;
+            })
+            .catch((err) => console.log(err));
+        } else if (message.action === "TIMER_STOP") {
+            clearTimeout(timerIds[message.recipient]);
+
+            // turn the device off
+            database.smartDevices.update({
+                where: {
+                    deviceId: message.recipient,
+                },
+                data: {
+                    deviceStatus: false,
+                    deviceTimer: false
+                }
+            })
+            .then(() => {
+                wss.clients.forEach(function each(client) {
+                    if (client.readyState === WebSocket.OPEN) {
+                        client.send(JSON.stringify({
+                            sender: deviceId,
+                            recipient: message.recipient,
+                            action: message.action,
+                            value: 1
+                        }));
+                    }
+                });
             })
             .catch((err) => console.log(err));
         }
@@ -356,6 +536,57 @@ server.on('upgrade', function upgrade(request, socket, head) {
     wss.handleUpgrade(request, socket, head, function done(ws) {
         wss.emit('connection', ws, deviceId);
     });
+});
+
+// =========================== SCHEDULED JOBS ============================ //
+scheduler.scheduleJob('* * * * *', function() {
+    const current = new Date();
+    const hour = current.getHours();
+    const minute = current.getMinutes();
+
+    database.scheduledSwitch.findMany({
+        where: {
+            startHour: hour,
+            startMinute: minute
+        }
+    })
+    .then(devices => {
+        for (let i = 0; i < devices.length; i++) {
+            wss.clients.forEach(function each(client) {
+                if (client.readyState === WebSocket.OPEN) {
+                    client.send(JSON.stringify({
+                        sender: devices[0].deviceId,
+                        recipient: devices[0].deviceId,
+                        action: "STATUS",
+                        value: 0
+                    }));
+                }
+            });
+        }
+    })
+    .catch(err => console.log(err));
+
+    database.scheduledSwitch.findMany({
+        where: {
+            endHour: hour,
+            endMinute: minute
+        }
+    })
+    .then(devices => {
+        for (let i = 0; i < devices.length; i++) {
+            wss.clients.forEach(function each(client) {
+                if (client.readyState === WebSocket.OPEN) {
+                    client.send(JSON.stringify({
+                        sender: devices[0].deviceId,
+                        recipient: devices[0].deviceId,
+                        action: "STATUS",
+                        value: 1
+                    }));
+                }
+            });
+        }
+    })
+    .catch(err => console.log(err));
 });
 
 
