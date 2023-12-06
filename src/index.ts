@@ -539,15 +539,18 @@ server.on('upgrade', function upgrade(request, socket, head) {
 });
 
 // =========================== SCHEDULED JOBS ============================ //
-scheduler.scheduleJob('* * * * *', function() {
+const job = scheduler.scheduleJob('* * * * *', function() {
     const current = new Date();
     const hour = current.getHours();
     const minute = current.getMinutes();
 
+    console.log('Job Executed.');
+
     database.scheduledSwitch.findMany({
         where: {
             startHour: hour,
-            startMinute: minute
+            startMinute: minute,
+            active: true
         }
     })
     .then(devices => {
@@ -569,7 +572,8 @@ scheduler.scheduleJob('* * * * *', function() {
     database.scheduledSwitch.findMany({
         where: {
             endHour: hour,
-            endMinute: minute
+            endMinute: minute,
+            active: true
         }
     })
     .then(devices => {
