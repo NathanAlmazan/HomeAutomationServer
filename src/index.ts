@@ -546,51 +546,16 @@ const job = scheduler.scheduleJob('* * * * *', function() {
 
     console.log('Job Executed.');
 
-    database.scheduledSwitch.findMany({
-        where: {
-            startHour: hour,
-            startMinute: minute,
-            active: true
+    wss.clients.forEach(function each(client) {
+        if (client.readyState === WebSocket.OPEN) {
+            client.send(JSON.stringify({
+                sender: "sample",
+                recipient: "sample",
+                action: "STATUS",
+                value: 1
+            }));
         }
-    })
-    .then(devices => {
-        for (let i = 0; i < devices.length; i++) {
-            wss.clients.forEach(function each(client) {
-                if (client.readyState === WebSocket.OPEN) {
-                    client.send(JSON.stringify({
-                        sender: devices[0].deviceId,
-                        recipient: devices[0].deviceId,
-                        action: "STATUS",
-                        value: 0
-                    }));
-                }
-            });
-        }
-    })
-    .catch(err => console.log(err));
-
-    database.scheduledSwitch.findMany({
-        where: {
-            endHour: hour,
-            endMinute: minute,
-            active: true
-        }
-    })
-    .then(devices => {
-        for (let i = 0; i < devices.length; i++) {
-            wss.clients.forEach(function each(client) {
-                if (client.readyState === WebSocket.OPEN) {
-                    client.send(JSON.stringify({
-                        sender: devices[0].deviceId,
-                        recipient: devices[0].deviceId,
-                        action: "STATUS",
-                        value: 1
-                    }));
-                }
-            });
-        }
-    })
-    .catch(err => console.log(err));
+    });
 });
 
 
