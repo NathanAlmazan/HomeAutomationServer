@@ -553,8 +553,8 @@ const job = scheduler.scheduleJob('* * * * *', function() {
     })
     .then(devices => {
         for (let i = 0; i < devices.length; i++) {
-            if ((devices[i].startHour <= hour && devices[i].endHour >= hour) || 
-                (devices[i].startMinute <= minute && devices[i].endMinute >= minute)) {
+            if ((hour > devices[i].startHour || (hour == devices[i].startHour && minute >= devices[i].startMinute)) &&
+                (hour < devices[i].endHour || (hour == devices[i].endHour && minute <= devices[i].endMinute))) {
                 database.smartDevices.update({
                     where: {
                         deviceId: devices[i].deviceId
