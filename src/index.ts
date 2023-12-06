@@ -93,7 +93,7 @@ app.post('/status', async (req, res) => {
                     sender: device.deviceId,
                     recipient: device.deviceId,
                     action: "STATUS",
-                    value: device.deviceStatus
+                    value: device.deviceStatus ? 0 : 1
                 }));
             }
         });
