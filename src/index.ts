@@ -86,6 +86,17 @@ app.post('/status', async (req, res) => {
                 deviceStatus: status.status > 0 ? false : true,
             }
         });
+
+        wss.clients.forEach(function each(client) {
+            if (client.readyState === WebSocket.OPEN) {
+                client.send(JSON.stringify({
+                    sender: device.deviceId,
+                    recipient: device.deviceId,
+                    action: "STATUS",
+                    value: device.deviceStatus
+                }));
+            }
+        });
     
         return res.status(200).json(device);
     } catch (err) {
