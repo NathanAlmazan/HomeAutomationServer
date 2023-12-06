@@ -338,7 +338,7 @@ app.post('/energy', async (req, res) => {
 });
 
 app.get('/energy:timestamp', async (req, res) => {
-    const timestamp = req.params.timestamp;
+    const timestamp = new Date(parseInt(req.params.timestamp));
 
     try {
         const previous = new Date(timestamp);
