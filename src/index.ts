@@ -540,10 +540,6 @@ server.on('upgrade', function upgrade(request, socket, head) {
 
 // =========================== SCHEDULED JOBS ============================ //
 const job = scheduler.scheduleJob('* * * * *', function() {
-    const current = new Date();
-    const hour = current.getHours();
-    const minute = current.getMinutes();
-
     console.log('Job Executed.');
 
     database.scheduledSwitch.findMany({
@@ -556,7 +552,9 @@ const job = scheduler.scheduleJob('* * * * *', function() {
         for (let i = 0; i < devices.length; i++) {
             const start = new Date(2020, 12, 25, devices[i].startHour, devices[i].startMinute);
             const end = new Date(2020, 12, 25, devices[i].endHour, devices[i].endMinute);
-            const cursor = new Date(2020, 12, 25, hour, minute);
+            const marker = new Date(2020, 12, 25, new Date().getHours(), new Date().getMinutes());
+            marker.setHours(marker.getHours() + 8);
+            const cursor = new Date(2020, 12, 25, marker.getHours(), marker.getMinutes());
 
             if (start.getTime() <= cursor.getTime() && end.getTime() >= cursor.getTime()) {
                 database.smartDevices.update({
