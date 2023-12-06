@@ -555,27 +555,49 @@ const job = scheduler.scheduleJob('* * * * *', function() {
         for (let i = 0; i < devices.length; i++) {
             if ((devices[i].startHour <= hour && devices[i].endHour >= hour) || 
                 (devices[i].startMinute <= minute && devices[i].endMinute >= minute)) {
-                wss.clients.forEach(function each(client) {
-                    if (client.readyState === WebSocket.OPEN) {
-                        client.send(JSON.stringify({
-                            sender: devices[0].deviceId,
-                            recipient: devices[0].deviceId,
-                            action: "STATUS",
-                            value: 0
-                        }));
+                database.smartDevices.update({
+                    where: {
+                        deviceId: devices[i].deviceId
+                    },
+                    data: {
+                        deviceStatus: true
                     }
-                });
+                })
+                .then(device => {
+                    wss.clients.forEach(function each(client) {
+                        if (client.readyState === WebSocket.OPEN) {
+                            client.send(JSON.stringify({
+                                sender: device.deviceId,
+                                recipient: device.deviceId,
+                                action: "STATUS",
+                                value: 0
+                            }));
+                        }
+                    });
+                })
+                .catch(err => console.log(err));
             } else {
-                wss.clients.forEach(function each(client) {
-                    if (client.readyState === WebSocket.OPEN) {
-                        client.send(JSON.stringify({
-                            sender: devices[0].deviceId,
-                            recipient: devices[0].deviceId,
-                            action: "STATUS",
-                            value: 1
-                        }));
+                database.smartDevices.update({
+                    where: {
+                        deviceId: devices[i].deviceId
+                    },
+                    data: {
+                        deviceStatus: false
                     }
-                });
+                })
+                .then(device => {
+                    wss.clients.forEach(function each(client) {
+                        if (client.readyState === WebSocket.OPEN) {
+                            client.send(JSON.stringify({
+                                sender: device.deviceId,
+                                recipient: device.deviceId,
+                                action: "STATUS",
+                                value: 1
+                            }));
+                        }
+                    });
+                })
+                .catch(err => console.log(err));
             }
         }
     })
