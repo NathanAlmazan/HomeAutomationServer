@@ -218,7 +218,7 @@ app.get('/schedule/:uid', async (req, res) => {
             })
         }
     
-        return res.status(200).json(schedule);
+        return res.status(200).json({ ...schedule, scheduleId: schedule.scheduleId.toString() });
     } catch (err) {
         return res.status(400).json({
             error: err,
