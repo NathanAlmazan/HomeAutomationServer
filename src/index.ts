@@ -352,6 +352,9 @@ app.get('/energy:timestamp', async (req, res) => {
                     gte: previous,
                     lte: current
                 }
+            },
+            orderBy: {
+                recordedAt: 'desc'
             }
         });
 
@@ -359,16 +362,13 @@ app.get('/energy:timestamp', async (req, res) => {
         const cost = consumption * 12.00;
 
         return res.json({
-            records: reports.map(report => ({
-                reportId: report.recordId.toString(),
-                power: report.power.toNumber(),
-                current: report.current.toNumber(),
-                voltage: report.voltage.toNumber(),
-                energy: report.energy.toNumber(),
-                frequency: report.frequency.toNumber(),
-                powerFactor: report.powerFactor.toNumber(),
-                recordedAt: report.recordedAt.toISOString()
-            })),
+            power: reports[0].power.toNumber(),
+            current: reports[0].current.toNumber(),
+            voltage: reports[0].voltage.toNumber(),
+            energy: reports[0].energy.toNumber(),
+            frequency: reports[0].frequency.toNumber(),
+            powerFactor: reports[0].powerFactor.toNumber(),
+            recordedAt: reports[0].recordedAt.toISOString(),
             consumption: consumption,
             cost: cost
         })
