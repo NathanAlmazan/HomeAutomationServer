@@ -337,39 +337,36 @@ app.post('/energy', async (req, res) => {
     }
 });
 
-app.get('/energy/:timestamp', async (req, res) => {
-    const timestamp = new Date(parseInt(req.params.timestamp));
+app.get('/energy', async (req, res) => {
 
     try {
-        const previous = new Date(timestamp);
-        previous.setDate(previous.getDate() - 1);
+        // const previous = new Date(timestamp);
+        // previous.setDate(previous.getDate() - 1);
 
-        const current = new Date(timestamp);
+        // const current = new Date(timestamp);
 
-        const reports = await database.energyMonitoring.findMany({
-            where: {
-                recordedAt: {
-                    gte: previous,
-                    lte: current
-                }
-            },
+        const report = await database.energyMonitoring.findFirst({
             orderBy: {
                 recordedAt: 'desc'
             }
         });
 
-        const consumption = reports[0].energy.toNumber() - reports[reports.length - 1].energy.toNumber();
-        const cost = consumption * 12.00;
+        if (!report) return res.status(400).json({
+            error: "No reports",
+            timestamp: new Date().toISOString()
+        })
+
+        const cost = report.energy.toNumber() * 12.00;
 
         return res.json({
-            power: reports[0].power.toNumber(),
-            current: reports[0].current.toNumber(),
-            voltage: reports[0].voltage.toNumber(),
-            energy: reports[0].energy.toNumber(),
-            frequency: reports[0].frequency.toNumber(),
-            powerFactor: reports[0].powerFactor.toNumber(),
-            recordedAt: reports[0].recordedAt.toISOString(),
-            consumption: consumption,
+            power: report.power.toNumber(),
+            current: report.current.toNumber(),
+            voltage: report.voltage.toNumber(),
+            energy: report.energy.toNumber(),
+            frequency: report.frequency.toNumber(),
+            powerFactor: report.powerFactor.toNumber(),
+            recordedAt: report.recordedAt.toISOString(),
+            consumption: report.energy.toNumber(),
             cost: cost
         })
     } catch (err) {
