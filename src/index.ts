@@ -348,36 +348,39 @@ app.post('/energy', async (req, res) => {
     }
 });
 
-app.get('/energy', async (req, res) => {
+app.get('/energy/:timestamp', async (req, res) => {
+    const target = new Date(req.params.timestamp);
 
     try {
-        // const previous = new Date(timestamp);
-        // previous.setDate(previous.getDate() - 1);
+        const previous = new Date(target);
+        previous.setDate(previous.getDate() - 1);
 
-        // const current = new Date(timestamp);
+        const current = new Date(target);
 
-        const report = await database.energyMonitoring.findFirst({
+        const reports = await database.energyMonitoring.findMany({
+            where: {
+                recordedAt: {
+                    gte: previous,
+                    lte: current
+                }
+            },
             orderBy: {
                 recordedAt: 'desc'
             }
         });
 
-        if (!report) return res.status(400).json({
-            error: "No reports",
-            timestamp: new Date().toISOString()
-        })
+        const consumption = reports[0].energy.toNumber() - reports[reports.length - 1].energy.toNumber()
+        const cost = consumption * 12.00;
 
-        const cost = report.energy.toNumber() * 12.00;
-
-        return res.json({
-            power: report.power.toNumber(),
-            current: report.current.toNumber(),
-            voltage: report.voltage.toNumber(),
-            energy: report.energy.toNumber(),
-            frequency: report.frequency.toNumber(),
-            powerFactor: report.powerFactor.toNumber(),
-            recordedAt: report.recordedAt.toISOString(),
-            consumption: report.energy.toNumber(),
+        return res.status(200).json({
+            power: reports[0].power.toNumber(),
+            current: reports[0].current.toNumber(),
+            voltage: reports[0].voltage.toNumber(),
+            energy: reports[0].energy.toNumber(),
+            frequency: reports[0].frequency.toNumber(),
+            powerFactor: reports[0].powerFactor.toNumber(),
+            recordedAt: reports[0].recordedAt.toISOString(),
+            consumption: consumption,
             cost: cost
         })
     } catch (err) {
@@ -387,6 +390,31 @@ app.get('/energy', async (req, res) => {
         })
     }
 });
+
+interface EnergySummary {
+    month: number;
+    consumption: number;
+}
+
+app.get('/energy', async (req, res) => {
+    try {
+        const summary: EnergySummary[] = await database.$queryRaw`SELECT EXTRACT(MONTH FROM "recordedAt") AS month,
+                                                    MAX(energy) - MIN(energy) AS consumption
+                                                FROM
+                                                    public."EnergyMonitoring"
+                                                GROUP BY
+                                                    EXTRACT(MONTH FROM "recordedAt")
+                                                ORDER BY
+                                                    EXTRACT(MONTH FROM "recordedAt") DESC;`
+
+        return res.status(200).json(summary);
+    } catch (err) {
+        return res.status(400).json({
+            error: err,
+            timestamp: new Date().toISOString()
+        })
+    }
+})
 
 // initialize websocket server using external http server
 const server = createServer(app); 
