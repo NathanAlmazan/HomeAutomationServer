@@ -369,6 +369,18 @@ app.get('/energy/:timestamp', async (req, res) => {
             }
         });
 
+        if (reports.length === 0) return res.status(200).json({
+            power: 0,
+            current: 0,
+            voltage: 0,
+            energy: 0,
+            frequency: 0,
+            powerFactor: 0,
+            recordedAt: 0,
+            consumption: 0,
+            cost: 0
+        });
+
         const consumption = reports[0].energy.toNumber() - reports[reports.length - 1].energy.toNumber()
         const cost = consumption * 12.00;
 
