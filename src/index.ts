@@ -384,6 +384,8 @@ app.get('/energy/:timestamp', async (req, res) => {
             cost: 0
         });
 
+        console.log(reports[0].recordId);
+
         const sorted = reports.sort((a, b) => b.energy.toNumber() - a.energy.toNumber());
         const consumption = sorted[0].energy.toNumber() - sorted[sorted.length - 1].energy.toNumber();
         const cost = consumption * 12.00;
