@@ -360,8 +360,8 @@ app.get('/energy/:timestamp', async (req, res) => {
         const reports = await database.energyMonitoring.findMany({
             where: {
                 recordedAt: {
-                    gte: previous,
-                    lte: current
+                    gte: previous.toISOString(),
+                    lte: current.toISOString()
                 }
             },
             orderBy: {
@@ -397,6 +397,7 @@ app.get('/energy/:timestamp', async (req, res) => {
             cost: cost
         })
     } catch (err) {
+        console.log(err);
         return res.status(400).json({
             error: err,
             timestamp: new Date().toISOString()
