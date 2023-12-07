@@ -349,13 +349,16 @@ app.post('/energy', async (req, res) => {
 });
 
 app.get('/energy/:timestamp', async (req, res) => {
-    const target = new Date(req.params.timestamp);
+    const target = new Date(parseInt(req.params.timestamp));
 
     try {
         const previous = new Date(target);
         previous.setDate(previous.getDate() - 1);
 
         const current = new Date(target);
+
+        console.log(previous.toLocaleString());
+        console.log(current.toLocaleString());
 
         const reports = await database.energyMonitoring.findMany({
             where: {
