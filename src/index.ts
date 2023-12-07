@@ -352,13 +352,8 @@ app.get('/energy/:timestamp', async (req, res) => {
     const target = new Date(parseInt(req.params.timestamp));
 
     try {
-        const previous = new Date(target);
-        previous.setDate(previous.getDate() - 1);
-
-        const current = new Date(target);
-
-        console.log(previous.toLocaleString());
-        console.log(current.toLocaleString());
+        const previous = new Date(target.getFullYear(), target.getMonth(), target.getDate());
+        const current = new Date(target.getFullYear(), target.getMonth(), target.getDate() + 1);
 
         const reports = await database.energyMonitoring.findMany({
             where: {
@@ -372,14 +367,21 @@ app.get('/energy/:timestamp', async (req, res) => {
             }
         });
 
+        const lastReport = await database.energyMonitoring.findMany({
+            orderBy: {
+                recordedAt: 'desc'
+            },
+            take: 2
+        })
+
         if (reports.length === 0) return res.status(200).json({
-            power: 0,
-            current: 0,
-            voltage: 0,
-            energy: 0,
-            frequency: 0,
-            powerFactor: 0,
-            recordedAt: 0,
+            power: lastReport[0].power.toNumber(),
+            current: lastReport[0].current.toNumber(),
+            voltage: lastReport[0].voltage.toNumber(),
+            energy: lastReport[0].energy.toNumber(),
+            frequency: lastReport[0].frequency.toNumber(),
+            powerFactor: lastReport[0].powerFactor.toNumber(),
+            recordedAt: lastReport[0].recordedAt.toISOString(),
             consumption: 0,
             cost: 0
         });
@@ -389,13 +391,13 @@ app.get('/energy/:timestamp', async (req, res) => {
         const cost = consumption * 12.00;
 
         return res.status(200).json({
-            power: reports[0].power.toNumber(),
-            current: reports[0].current.toNumber(),
-            voltage: reports[0].voltage.toNumber(),
-            energy: reports[0].energy.toNumber(),
-            frequency: reports[0].frequency.toNumber(),
-            powerFactor: reports[0].powerFactor.toNumber(),
-            recordedAt: reports[0].recordedAt.toISOString(),
+            power: lastReport[0].power.toNumber(),
+            current: lastReport[0].current.toNumber(),
+            voltage: lastReport[0].voltage.toNumber(),
+            energy: lastReport[0].energy.toNumber(),
+            frequency: lastReport[0].frequency.toNumber(),
+            powerFactor: lastReport[0].powerFactor.toNumber(),
+            recordedAt: lastReport[0].recordedAt.toISOString(),
             consumption: consumption,
             cost: cost
         })
