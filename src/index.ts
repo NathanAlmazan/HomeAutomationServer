@@ -368,7 +368,6 @@ app.get('/energy/:timestamp', async (req, res) => {
         previous.setDate(previous.getDate() - 1);
 
         const current = new Date(target.getFullYear(), target.getMonth(), target.getDate());
-        current.setHours(current.getHours() + 8);
 
         const reports = await database.energyMonitoring.findMany({
             where: {
