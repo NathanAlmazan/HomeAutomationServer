@@ -636,6 +636,8 @@ wss.on('connection', function connection(ws: WebSocket, deviceId: string) {
             }
         } else {
             const base64String = Buffer.from(data as Buffer).toString('base64');
+            console.log("Image: " + base64String);
+            
             wss.clients.forEach(function each(client) {
                 if (client !== ws && client.readyState === WebSocket.OPEN) {
                     client.send(JSON.stringify({
