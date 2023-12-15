@@ -350,6 +350,7 @@ app.post('/energy', async (req, res) => {
 
 app.get('/energy/:timestamp', async (req, res) => {
     const target = new Date(parseInt(req.params.timestamp));
+    target.setHours(target.getHours() + 8);
 
     try {
         const settings = await database.userSettings.findUnique({
@@ -364,7 +365,6 @@ app.get('/energy/:timestamp', async (req, res) => {
         });
 
         const previous = new Date(target.getFullYear(), target.getMonth(), target.getDate());
-        previous.setDate(previous.getDate() - 1);
         
         const current = new Date(target.getFullYear(), target.getMonth(), target.getDate());
         current.setDate(current.getDate() + 1);
