@@ -1,7 +1,7 @@
 import express from 'express';
 import bodyParser from 'body-parser';
 import { IncomingMessage, createServer } from 'http';
-import { WebSocket, WebSocketServer } from 'ws';
+import { RawData, WebSocket, WebSocketServer } from 'ws';
 import cors from 'cors';
 import scheduler from 'node-schedule';
 import jwt from 'jsonwebtoken';
@@ -440,7 +440,6 @@ const server = createServer(app);
 const wss = new WebSocketServer({ 
     noServer: true 
 }); 
-
 // ====================== WebSocket Endpoints ========================= //
 interface SocketMessage {
     recipient: string;
@@ -448,116 +447,139 @@ interface SocketMessage {
     value: number;
 }
 
+function isJSON(data: RawData) {
+    try {
+        JSON.parse(data.toString());
+        return true;
+    } catch (error) {
+        return false;
+    }
+}
+
 wss.on('connection', function connection(ws: WebSocket, deviceId: string) {
     ws.on('error', console.error);
   
     ws.on('message', function message(data) {
-        const message: SocketMessage = JSON.parse(data.toString());
+        if (isJSON(data)) {
+            const message: SocketMessage = JSON.parse(data.toString());
 
-        // if action is status send command
-        if (message.action === "STATUS") {
-            database.smartDevices.update({
-                where: {
-                    deviceId: message.recipient,
-                },
-                data: {
-                    deviceStatus: message.value > 0 ? false : true,
-                }
-            })
-            .then(() => {
-                wss.clients.forEach(function each(client) {
-                    if (client !== ws && client.readyState === WebSocket.OPEN) {
-                        client.send(JSON.stringify({
-                            sender: deviceId,
-                            recipient: message.recipient,
-                            action: message.action,
-                            value: message.value
-                        }));
+            // if action is status send command
+            if (message.action === "STATUS") {
+                database.smartDevices.update({
+                    where: {
+                        deviceId: message.recipient,
+                    },
+                    data: {
+                        deviceStatus: message.value > 0 ? false : true,
                     }
-                });
-            })
-            .catch((err) => console.log(err));
-
-        // if action is timer...
-        } else if (message.action === "TIMER") {
-            // turn device on
-            database.smartDevices.update({
-                where: {
-                    deviceId: message.recipient,
-                },
-                data: {
-                    deviceStatus: true,
-                    deviceTimer: true
-                }
-            })
-            .then(() => {
-                wss.clients.forEach(function each(client) {
-                    if (client !== ws && client.readyState === WebSocket.OPEN) {
-                        client.send(JSON.stringify({
-                            sender: deviceId,
-                            recipient: message.recipient,
-                            action: message.action,
-                            value: 0
-                        }));
-                    }
-                });
-
-                // wait for defined time
-                const timer = setTimeout(() => {
-                    // turn the device off
-                    database.smartDevices.update({
-                        where: {
-                            deviceId: message.recipient,
-                        },
-                        data: {
-                            deviceStatus: false,
-                            deviceTimer: false
+                })
+                .then(() => {
+                    wss.clients.forEach(function each(client) {
+                        if (client !== ws && client.readyState === WebSocket.OPEN) {
+                            client.send(JSON.stringify({
+                                sender: deviceId,
+                                recipient: message.recipient,
+                                action: message.action,
+                                value: message.value
+                            }));
                         }
-                    })
-                    .then(() => {
-                        wss.clients.forEach(function each(client) {
-                            if (client.readyState === WebSocket.OPEN) {
-                                client.send(JSON.stringify({
-                                    sender: deviceId,
-                                    recipient: message.recipient,
-                                    action: message.action,
-                                    value: 1
-                                }));
-                            }
-                        });
-                    })
-                    .catch((err) => console.log(err));
-                }, message.value);
+                    });
+                })
+                .catch((err) => console.log(err));
 
-                timerIds[message.recipient] = timer;
-            })
-            .catch((err) => console.log(err));
-        } else if (message.action === "TIMER_STOP") {
-            clearTimeout(timerIds[message.recipient]);
-
-            // turn the device off
-            database.smartDevices.update({
-                where: {
-                    deviceId: message.recipient,
-                },
-                data: {
-                    deviceStatus: false,
-                    deviceTimer: false
-                }
-            })
-            .then(() => {
-                wss.clients.forEach(function each(client) {
-                    if (client.readyState === WebSocket.OPEN) {
-                        client.send(JSON.stringify({
-                            sender: deviceId,
-                            recipient: message.recipient,
-                            action: message.action,
-                            value: 1
-                        }));
+            // if action is timer...
+            } else if (message.action === "TIMER") {
+                // turn device on
+                database.smartDevices.update({
+                    where: {
+                        deviceId: message.recipient,
+                    },
+                    data: {
+                        deviceStatus: true,
+                        deviceTimer: true
                     }
-                });
-            })
-            .catch((err) => console.log(err));
+                })
+                .then(() => {
+                    wss.clients.forEach(function each(client) {
+                        if (client !== ws && client.readyState === WebSocket.OPEN) {
+                            client.send(JSON.stringify({
+                                sender: deviceId,
+                                recipient: message.recipient,
+                                action: message.action,
+                                value: 0
+                            }));
+                        }
+                    });
+
+                    // wait for defined time
+                    const timer = setTimeout(() => {
+                        // turn the device off
+                        database.smartDevices.update({
+                            where: {
+                                deviceId: message.recipient,
+                            },
+                            data: {
+                                deviceStatus: false,
+                                deviceTimer: false
+                            }
+                        })
+                        .then(() => {
+                            wss.clients.forEach(function each(client) {
+                                if (client.readyState === WebSocket.OPEN) {
+                                    client.send(JSON.stringify({
+                                        sender: deviceId,
+                                        recipient: message.recipient,
+                                        action: message.action,
+                                        value: 1
+                                    }));
+                                }
+                            });
+                        })
+                        .catch((err) => console.log(err));
+                    }, message.value);
+
+                    timerIds[message.recipient] = timer;
+                })
+                .catch((err) => console.log(err));
+            } else if (message.action === "TIMER_STOP") {
+                clearTimeout(timerIds[message.recipient]);
+
+                // turn the device off
+                database.smartDevices.update({
+                    where: {
+                        deviceId: message.recipient,
+                    },
+                    data: {
+                        deviceStatus: false,
+                        deviceTimer: false
+                    }
+                })
+                .then(() => {
+                    wss.clients.forEach(function each(client) {
+                        if (client.readyState === WebSocket.OPEN) {
+                            client.send(JSON.stringify({
+                                sender: deviceId,
+                                recipient: message.recipient,
+                                action: message.action,
+                                value: 1
+                            }));
+                        }
+                    });
+                })
+                .catch((err) => console.log(err));
+            }
+        } else {
+            const base64String = Buffer.from(data as Buffer).toString('base64');
+            wss.clients.forEach(function each(client) {
+                if (client !== ws && client.readyState === WebSocket.OPEN) {
+                    client.send(JSON.stringify({
+                        sender: deviceId,
+                        recipient: base64String,
+                        action: "VIDEO",
+                        value: 0
+                    }));
+                }
+            });
         }
     });
 });
