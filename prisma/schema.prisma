@@ -14,6 +14,7 @@ model UserSettings {
   settingId       Int            @id @default(autoincrement())
   costPerWatt     Decimal        @default(12.00)
   maxWattPerDay   Decimal        @default(3.00)
+  frequency       String         @default("Daily")
 }
 
 model SmartDevices {

@@ -431,13 +431,15 @@ app.post('/cost', async (req, res) => {
             },
             data: {
                 costPerWatt: data.costPerWatt,
-                maxWattPerDay: data.maxWattPerDay
+                maxWattPerDay: data.maxWattPerDay,
+                frequency: data.frequency
             }
         })
 
         return res.status(200).json({
             costPerWatt: settings.costPerWatt.toNumber(),
-            maxWattPerDay: settings.maxWattPerDay.toNumber()
+            maxWattPerDay: settings.maxWattPerDay.toNumber(),
+            frequency: settings.frequency
         })
     } catch (err) {
         console.log(err);
@@ -449,8 +451,6 @@ app.post('/cost', async (req, res) => {
 });
 
 app.get('/cost', async (req, res) => {
-    const data: UserSettings = req.body;
-    
     try {
         const settings = await database.userSettings.findUnique({
             where: {
@@ -465,7 +465,8 @@ app.get('/cost', async (req, res) => {
 
         return res.status(200).json({
             costPerWatt: settings.costPerWatt.toNumber(),
-            maxWattPerDay: settings.maxWattPerDay.toNumber()
+            maxWattPerDay: settings.maxWattPerDay.toNumber(),
+            frequency: settings.frequency
         })
     } catch (err) {
         console.log(err);
