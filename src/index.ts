@@ -6,7 +6,7 @@ import cors from 'cors';
 import scheduler from 'node-schedule';
 import jwt from 'jsonwebtoken';
 import dotenv from 'dotenv';
-import { Prisma, PrismaClient, ScheduledSwitch, SmartDevices } from '@prisma/client';
+import { Prisma, PrismaClient, ScheduledSwitch, SmartDevices, UserSettings } from '@prisma/client';
 
 dotenv.config();
 
@@ -15,8 +15,6 @@ const database = new PrismaClient();
 
 // initialize timer storage
 let timerIds: { [key: string]: NodeJS.Timeout } = {};
-// initialize cost storage
-let cost_per_watt = 12.00;
 
 // initialize express application
 const app = express();
@@ -354,6 +352,17 @@ app.get('/energy/:timestamp', async (req, res) => {
     const target = new Date(parseInt(req.params.timestamp));
 
     try {
+        const settings = await database.userSettings.findUnique({
+            where: {
+                settingId: 1
+            }
+        });
+
+        if (!settings) return res.status(400).json({
+            error: "Settings not found",
+            timestamp: new Date().toISOString()
+        });
+
         const previous = new Date(target.getFullYear(), target.getMonth(), target.getDate());
         const current = new Date(target.getFullYear(), target.getMonth(), target.getDate() + 1);
 
@@ -390,7 +399,7 @@ app.get('/energy/:timestamp', async (req, res) => {
 
         const energyReports = reports.map(r => r.energy.toNumber());
         const consumption = Math.max(...energyReports) - Math.min(...energyReports);
-        const cost = consumption * cost_per_watt;
+        const cost = consumption * settings.costPerWatt.toNumber();
 
         return res.status(200).json({
             power: lastReport[0].power.toNumber(),
@@ -412,13 +421,59 @@ app.get('/energy/:timestamp', async (req, res) => {
     }
 });
 
-app.post('/cost/:peso', async (req, res) => {
-    const cost = parseFloat(req.params.peso);
-    cost_per_watt = cost;
+app.post('/cost', async (req, res) => {
+    const data: UserSettings = req.body;
+    
+    try {
+        const settings = await database.userSettings.update({
+            where: {
+                settingId: 1
+            },
+            data: {
+                costPerWatt: data.costPerWatt,
+                maxWattPerDay: data.maxWattPerDay
+            }
+        })
 
-    return res.status(200).json({
-        message: `Cost per Kilo Watt Hour changed to ${cost}`
-    })
+        return res.status(200).json({
+            costPerWatt: settings.costPerWatt.toNumber(),
+            maxWattPerDay: settings.maxWattPerDay.toNumber()
+        })
+    } catch (err) {
+        console.log(err);
+        return res.status(400).json({
+            error: err,
+            timestamp: new Date().toISOString()
+        })
+    }
+});
+
+app.get('/cost', async (req, res) => {
+    const data: UserSettings = req.body;
+    
+    try {
+        const settings = await database.userSettings.findUnique({
+            where: {
+                settingId: 1
+            }
+        });
+
+        if (!settings) return res.status(400).json({
+            error: "Settings not found",
+            timestamp: new Date().toISOString()
+        });
+
+        return res.status(200).json({
+            costPerWatt: settings.costPerWatt.toNumber(),
+            maxWattPerDay: settings.maxWattPerDay.toNumber()
+        })
+    } catch (err) {
+        console.log(err);
+        return res.status(400).json({
+            error: err,
+            timestamp: new Date().toISOString()
+        })
+    }
 });
 
 interface EnergySummary {

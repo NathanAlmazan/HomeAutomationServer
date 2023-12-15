@@ -10,6 +10,12 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model UserSettings {
+  settingId       Int            @id @default(autoincrement())
+  costPerWatt     Decimal        @default(12.00)
+  maxWattPerDay   Decimal        @default(3.00)
+}
+
 model SmartDevices {
   deviceId        String         @id @db.Uuid @default(uuid())
   deviceName      String         @db.VarChar(50)
