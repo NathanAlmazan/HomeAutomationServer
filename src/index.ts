@@ -307,6 +307,7 @@ interface EnergyReport {
 
 app.post('/energy', async (req, res) => {
     const data = req.body as EnergyReport;
+
     try {
         const report = await database.energyMonitoring.create({
             data: {
@@ -350,7 +351,6 @@ app.post('/energy', async (req, res) => {
 
 app.get('/energy/:timestamp', async (req, res) => {
     const target = new Date(parseInt(req.params.timestamp));
-    target.setHours(target.getHours() + 8);
 
     try {
         const settings = await database.userSettings.findUnique({
@@ -365,12 +365,9 @@ app.get('/energy/:timestamp', async (req, res) => {
         });
 
         const previous = new Date(target.getFullYear(), target.getMonth(), target.getDate());
-        
-        const current = new Date(target.getFullYear(), target.getMonth(), target.getDate());
-        current.setDate(current.getDate() + 1);
+        previous.setDate(previous.getDate() - 1);
 
-        console.log(previous.toISOString());
-        console.log(current.toISOString());
+        const current = new Date(target.getFullYear(), target.getMonth(), target.getDate());
 
         const reports = await database.energyMonitoring.findMany({
             where: {
