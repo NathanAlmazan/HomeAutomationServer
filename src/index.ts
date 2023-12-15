@@ -15,6 +15,8 @@ const database = new PrismaClient();
 
 // initialize timer storage
 let timerIds: { [key: string]: NodeJS.Timeout } = {};
+// initialize cost storage
+let cost_per_watt = 12.00;
 
 // initialize express application
 const app = express();
@@ -388,7 +390,7 @@ app.get('/energy/:timestamp', async (req, res) => {
 
         const energyReports = reports.map(r => r.energy.toNumber());
         const consumption = Math.max(...energyReports) - Math.min(...energyReports);
-        const cost = consumption * 12.00;
+        const cost = consumption * cost_per_watt;
 
         return res.status(200).json({
             power: lastReport[0].power.toNumber(),
@@ -408,6 +410,15 @@ app.get('/energy/:timestamp', async (req, res) => {
             timestamp: new Date().toISOString()
         })
     }
+});
+
+app.post('/cost/:peso', async (req, res) => {
+    const cost = parseFloat(req.params.peso);
+    cost_per_watt = cost;
+
+    return res.status(200).json({
+        message: `Cost per Kilo Watt Hour changed to ${cost}`
+    })
 });
 
 interface EnergySummary {
@@ -585,12 +596,17 @@ wss.on('connection', function connection(ws: WebSocket, deviceId: string) {
 });
 
 function authenticate(request: IncomingMessage): string | null {
-    const token = request.headers.authorization;
+    try {
+        const token = request.headers.authorization;
 
-    if (!token) return null;
+        if (!token) return null;
 
-    const payload = jwt.verify(token.split('Bearer ')[1], process.env.SECRET as string);
-    return (payload as SmartDevices).deviceId;
+        const payload = jwt.verify(token.split('Bearer ')[1], process.env.SECRET as string);
+        return (payload as SmartDevices).deviceId;
+    } catch (err) {
+        console.error(err);
+        return null;
+    }
 }
 
 server.on('upgrade', function upgrade(request, socket, head) {
