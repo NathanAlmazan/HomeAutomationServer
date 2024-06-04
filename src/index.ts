@@ -49,23 +49,12 @@ app.post('/register', async (req, res) => {
 });
 
 app.get('/login/:uid', async (req, res) => {
-    const deviceId: string = req.params.uid;
+    const deviceId = "a2c28669-361a-4a9e-b2f7-955b20e8341f";
 
-    const device = await database.smartDevices.findUnique({
-        where: {
-            deviceId: deviceId
-        }
-    });
-
-    if (!device) return res.status(400).json({
-        error: 'Device not found.',
-        timestamp: new Date().toISOString()
-    })
-
-    const token = jwt.sign({ deviceId: device.deviceId }, process.env.SECRET as string, { algorithm: 'HS256', expiresIn: '24h' });
+    const token = jwt.sign({ deviceId: deviceId }, process.env.SECRET as string, { algorithm: 'HS256', expiresIn: '24h' });
 
     return res.status(200).json({
-        id: device.deviceId,
+        id: deviceId,
         token: token
     })
 });
