@@ -492,7 +492,38 @@ app.get('/energy', async (req, res) => {
             timestamp: new Date().toISOString()
         })
     }
-})
+});
+
+// consumption history
+app.get('/history/:frequency', async (req, res) => {
+    try {
+        const frequency = req.params.frequency;
+        const frequencies = ['hour', 'day', 'week', 'month'];
+
+        if (!frequencies.includes(frequency)) return res.status(400).json({
+            error: "Invalid frequency",
+            timestamp: new Date().toISOString()
+        });
+
+        const history = await database.$queryRaw`
+                            SELECT
+                                DATE_TRUNC(${frequency}, "recordedAt") AS stamp,
+                                SUM("energy") AS energy      
+                            FROM
+                                public."EnergyMonitoring"
+                            GROUP BY
+                                stamp
+                            ORDER BY
+                                stamp`;
+
+        return res.status(200).json(history);
+    } catch (err) {
+        return res.status(400).json({
+            error: err,
+            timestamp: new Date().toISOString()
+        })
+    }
+});
 
 // initialize websocket server using external http server
 const server = createServer(app); 
