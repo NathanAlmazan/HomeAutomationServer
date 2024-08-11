@@ -771,6 +771,35 @@ const job = scheduler.scheduleJob('* * * * *', function() {
         }
     })
     .catch(err => console.log(err));
+
+    database.energyMonitoring.findFirst({
+        orderBy: {
+            recordedAt: 'desc'
+        },
+        select: {
+            recordedAt: true
+        }
+    })
+    .then(lastRecord => {
+        if (lastRecord) {
+            const now = new Date();
+            const diff = now.getTime() - lastRecord.recordedAt.getTime();
+
+            if (diff >= 60000) {
+                wss.clients.forEach(function each(client) {
+                    if (client.readyState === WebSocket.OPEN) {
+                        client.send(JSON.stringify({
+                            sender: "server",
+                            recipient: "all",
+                            action: "DISCONNECTED",
+                            value: 0
+                        }));
+                    }
+                });
+            }
+        }
+    })
+    .catch(err => console.log(err));
 });
 
 
