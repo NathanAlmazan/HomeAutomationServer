@@ -785,7 +785,7 @@ const job = scheduler.scheduleJob('* * * * *', function() {
             const now = new Date();
             const diff = now.getTime() - lastRecord.recordedAt.getTime();
 
-            if (diff >= 60000) {
+            if (diff > 5000) {
                 wss.clients.forEach(function each(client) {
                     if (client.readyState === WebSocket.OPEN) {
                         client.send(JSON.stringify({
