@@ -246,7 +246,13 @@ app.get('/consumption/:uid', async (req, res) => {
             }
         });
     
-        return res.status(200).json(consumption);
+        return res.status(200).json(consumption.map(log => ({
+            deviceId: log.deviceId,
+            deviceName: log.deviceName,
+            opened: log.opened.toISOString(),
+            closed: log.closed.toISOString(),
+            consumed: log.consumed.toNumber(),
+        })));
     } catch (err) {
         return res.status(400).json({
             error: err,
