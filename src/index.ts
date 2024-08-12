@@ -6,7 +6,7 @@ import cors from 'cors';
 import scheduler from 'node-schedule';
 import jwt from 'jsonwebtoken';
 import dotenv from 'dotenv';
-import { Prisma, PrismaClient, ScheduledSwitch, SmartDevices, UserSettings } from '@prisma/client';
+import { EnergyMonitoring, Prisma, PrismaClient, ScheduledSwitch, SmartDevices, UserSettings } from '@prisma/client';
 
 dotenv.config();
 
@@ -67,15 +67,57 @@ interface StatusReport {
 }
 
 app.post('/status', async (req, res) => {
-    const status: StatusReport = req.body;
+    const body: StatusReport = req.body;
+    const status = body.status > 0 ? false : true;
 
     try {
+        const state = await database.smartDevices.findUnique({
+            where: {
+                deviceId: body.deviceId,
+            },
+            select: {
+                deviceId: true,
+                deviceStatus: true,
+                updatedAt: true
+            }
+        });
+
+        // monitor outlet consumption
+        if (!status && state) {
+            if (state.deviceStatus && state.updatedAt) {
+                const timestamp = new Date();
+
+                const history = await database.energyMonitoring.aggregate({
+                    where: {
+                        recordedAt: {
+                            gte: state.updatedAt,
+                            lte: timestamp
+                        }
+                    },
+                    _sum: {
+                        power: true
+                    }
+                });
+
+                if (history._sum.power) {
+                    await database.deviceLogs.create({
+                        data: {
+                            deviceId: body.deviceId,
+                            opened: state.updatedAt,
+                            closed: timestamp,
+                            consumed: history._sum.power
+                        }
+                    })
+                }
+            }
+        }
+
         const device =  await database.smartDevices.update({
             where: {
-                deviceId: status.deviceId,
+                deviceId: body.deviceId,
             },
             data: {
-                deviceStatus: status.status > 0 ? false : true,
+                deviceStatus: status,
             }
         });
 
@@ -182,6 +224,23 @@ app.get('/device/:uid', async (req, res) => {
         });
     
         return res.status(200).json(device);
+    } catch (err) {
+        return res.status(400).json({
+            error: err,
+            timestamp: new Date().toISOString()
+        })
+    }
+});
+
+app.get('/consumption/:uid', async (req, res) => {
+    try {
+        const consumption = await database.deviceLogs.findMany({
+            where: {
+                deviceId: req.params.uid
+            }
+        });
+    
+        return res.status(200).json(consumption);
     } catch (err) {
         return res.status(400).json({
             error: err,

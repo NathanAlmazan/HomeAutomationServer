@@ -26,7 +26,18 @@ model SmartDevices {
   controller      Boolean        @default(false)
   deviceTimer     Boolean        @default(false)
   outlet          Int            @default(0)
+  updatedAt       DateTime?      @updatedAt
   schedules       ScheduledSwitch?
+  logs            DeviceLogs[]
+}
+
+model DeviceLogs {
+  logId           BigInt        @id @default(autoincrement())
+  deviceId        String        @db.Uuid
+  device          SmartDevices  @relation(fields: [deviceId], references: [deviceId])
+  opened          DateTime
+  closed          DateTime
+  consumed        Decimal
 }
 
 model EnergyMonitoring {
