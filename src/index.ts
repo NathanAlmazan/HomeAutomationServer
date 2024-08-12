@@ -66,51 +66,54 @@ interface StatusReport {
     status: number;
 }
 
+async function generateLog(deviceId: string, status: boolean, timestamp: Date) {
+    const state = await database.smartDevices.findUnique({
+        where: {
+            deviceId: deviceId,
+        },
+        select: {
+            deviceId: true,
+            deviceStatus: true,
+            updatedAt: true
+        }
+    });
+
+    // monitor outlet consumption
+    if (!status && state) {
+        if (state.deviceStatus && state.updatedAt) {
+            const history = await database.energyMonitoring.aggregate({
+                where: {
+                    recordedAt: {
+                        gte: state.updatedAt,
+                        lte: timestamp
+                    }
+                },
+                _sum: {
+                    power: true
+                }
+            });
+
+            if (history._sum.power) {
+                await database.deviceLogs.create({
+                    data: {
+                        deviceId: deviceId,
+                        opened: state.updatedAt,
+                        closed: timestamp,
+                        consumed: history._sum.power
+                    }
+                })
+            }
+        }
+    }
+}
+
 app.post('/status', async (req, res) => {
     const body: StatusReport = req.body;
     const status = body.status > 0 ? false : true;
+    const timestamp = new Date();
 
     try {
-        const state = await database.smartDevices.findUnique({
-            where: {
-                deviceId: body.deviceId,
-            },
-            select: {
-                deviceId: true,
-                deviceStatus: true,
-                updatedAt: true
-            }
-        });
-
-        // monitor outlet consumption
-        if (!status && state) {
-            if (state.deviceStatus && state.updatedAt) {
-                const timestamp = new Date();
-
-                const history = await database.energyMonitoring.aggregate({
-                    where: {
-                        recordedAt: {
-                            gte: state.updatedAt,
-                            lte: timestamp
-                        }
-                    },
-                    _sum: {
-                        power: true
-                    }
-                });
-
-                if (history._sum.power) {
-                    await database.deviceLogs.create({
-                        data: {
-                            deviceId: body.deviceId,
-                            opened: state.updatedAt,
-                            closed: timestamp,
-                            consumed: history._sum.power
-                        }
-                    })
-                }
-            }
-        }
+        await generateLog(body.deviceId, status, timestamp);
 
         const device =  await database.smartDevices.update({
             where: {
@@ -118,6 +121,7 @@ app.post('/status', async (req, res) => {
             },
             data: {
                 deviceStatus: status,
+                updatedAt: timestamp
             }
         });
 
@@ -614,12 +618,19 @@ wss.on('connection', function connection(ws: WebSocket, deviceId: string) {
 
             // if action is status send command
             if (message.action === "STATUS") {
+                const status = message.value > 0 ? false : true
+                const timestamp = new Date();
+
+                generateLog(message.recipient, status, timestamp)
+                    .catch(err => console.log(err));
+
                 database.smartDevices.update({
                     where: {
                         deviceId: message.recipient,
                     },
                     data: {
-                        deviceStatus: message.value > 0 ? false : true,
+                        deviceStatus: status,
+                        updatedAt: timestamp
                     }
                 })
                 .then(() => {
@@ -645,7 +656,8 @@ wss.on('connection', function connection(ws: WebSocket, deviceId: string) {
                     },
                     data: {
                         deviceStatus: true,
-                        deviceTimer: true
+                        deviceTimer: true,
+                        updatedAt: new Date()
                     }
                 })
                 .then(() => {
@@ -662,6 +674,11 @@ wss.on('connection', function connection(ws: WebSocket, deviceId: string) {
 
                     // wait for defined time
                     const timer = setTimeout(() => {
+                        const timestamp = new Date();
+
+                        generateLog(message.recipient, false, timestamp)
+                            .catch(err => console.log(err));
+
                         // turn the device off
                         database.smartDevices.update({
                             where: {
@@ -669,7 +686,8 @@ wss.on('connection', function connection(ws: WebSocket, deviceId: string) {
                             },
                             data: {
                                 deviceStatus: false,
-                                deviceTimer: false
+                                deviceTimer: false,
+                                updatedAt: timestamp
                             }
                         })
                         .then(() => {
@@ -692,6 +710,11 @@ wss.on('connection', function connection(ws: WebSocket, deviceId: string) {
                 .catch((err) => console.log(err));
             } else if (message.action === "TIMER_STOP") {
                 clearTimeout(timerIds[message.recipient]);
+                
+                const timestamp = new Date();
+
+                generateLog(message.recipient, false, timestamp)
+                    .catch(err => console.log(err));
 
                 // turn the device off
                 database.smartDevices.update({
@@ -700,7 +723,8 @@ wss.on('connection', function connection(ws: WebSocket, deviceId: string) {
                     },
                     data: {
                         deviceStatus: false,
-                        deviceTimer: false
+                        deviceTimer: false,
+                        updatedAt: timestamp
                     }
                 })
                 .then(() => {
@@ -788,7 +812,8 @@ const job = scheduler.scheduleJob('* * * * *', function() {
                         deviceId: devices[i].deviceId
                     },
                     data: {
-                        deviceStatus: true
+                        deviceStatus: true,
+                        updatedAt: new Date()
                     }
                 })
                 .then(device => {
@@ -805,12 +830,18 @@ const job = scheduler.scheduleJob('* * * * *', function() {
                 })
                 .catch(err => console.log(err));
             } else {
+                const timestamp = new Date();
+
+                generateLog(devices[i].deviceId, false, timestamp)
+                    .catch(err => console.log(err));
+
                 database.smartDevices.update({
                     where: {
                         deviceId: devices[i].deviceId
                     },
                     data: {
-                        deviceStatus: false
+                        deviceStatus: false,
+                        updatedAt: timestamp
                     }
                 })
                 .then(device => {
