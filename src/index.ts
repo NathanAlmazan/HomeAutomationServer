@@ -6,7 +6,7 @@ import cors from 'cors';
 import scheduler from 'node-schedule';
 import jwt from 'jsonwebtoken';
 import dotenv from 'dotenv';
-import { EnergyMonitoring, Prisma, PrismaClient, ScheduledSwitch, SmartDevices, UserSettings } from '@prisma/client';
+import { Prisma, PrismaClient, ScheduledSwitch, SmartDevices, UserSettings } from '@prisma/client';
 
 dotenv.config();
 
@@ -73,6 +73,7 @@ async function generateLog(deviceId: string, status: boolean, timestamp: Date) {
         },
         select: {
             deviceId: true,
+            deviceName: true,
             deviceStatus: true,
             updatedAt: true
         }
@@ -99,7 +100,8 @@ async function generateLog(deviceId: string, status: boolean, timestamp: Date) {
                         deviceId: deviceId,
                         opened: state.updatedAt,
                         closed: timestamp,
-                        consumed: history._sum.power
+                        consumed: history._sum.power,
+                        deviceName: state.deviceName
                     }
                 })
             }

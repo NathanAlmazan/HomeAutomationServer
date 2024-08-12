@@ -34,6 +34,7 @@ model SmartDevices {
 model DeviceLogs {
   logId           BigInt        @id @default(autoincrement())
   deviceId        String        @db.Uuid
+  deviceName      String        @db.VarChar(50) @default("Lightbulb")
   device          SmartDevices  @relation(fields: [deviceId], references: [deviceId])
   opened          DateTime
   closed          DateTime
